@@ -240,7 +240,12 @@ const FilterBlogsByDate = async (req, res) => {
         .json({ success: false, message: "User not authenticated" });
       return;
     }
-
+    if (req.user._id !== Blog.userId.toString()) {
+      res
+        .status(401)
+        .json({ success: false, message: "User not authenticated" });
+      return;
+    }
     const date = req.query.date;
     if (!date) {
       res.status(400).json({ success: false, message: "Date is required" });

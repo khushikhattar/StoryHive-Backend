@@ -14,6 +14,13 @@ It provides **secure user authentication, role-based access control, and full bl
 
 ---
 
+## 🌐 Live API
+
+The backend is deployed on **Render**:  
+👉 [https://storyhive-backend.onrender.com](https://storyhive-backend.onrender.com)
+
+---
+
 ## 🚀 Features
 
 - 🔐 **Authentication & Authorization**
