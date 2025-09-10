@@ -1,0 +1,23 @@
+import express from "express";
+import { connectDB } from "./db/dbConnect.js";
+import BlogRouter from "./routes/blog.routes.js";
+import AuthRouter from "./routes/auth.routes.js";
+import UserRouter from "./routes/user.routes.js";
+import { corsConfig } from "./config/corsConfig.js";
+import { loggingMiddleware } from "./middlewares/loggingMiddleware.js";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+dotenv.config();
+const app = express();
+const PORT = 4500 || process.env.PORT;
+app.use(corsConfig());
+app.use(express.json());
+app.use(loggingMiddleware);
+app.use(cookieParser());
+connectDB();
+app.use("/api/v1/blogs", BlogRouter);
+app.use("/api/v1/auth", AuthRouter);
+app.use("/api/v1/users", UserRouter);
+app.listen(PORT, () => {
+  console.log(`Server listening on http://localhost:${PORT}`);
+});
