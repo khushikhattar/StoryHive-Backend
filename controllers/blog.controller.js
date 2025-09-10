@@ -240,12 +240,6 @@ const FilterBlogsByDate = async (req, res) => {
         .json({ success: false, message: "User not authenticated" });
       return;
     }
-    if (req.user._id !== Blog.userId.toString()) {
-      res
-        .status(401)
-        .json({ success: false, message: "User not authenticated" });
-      return;
-    }
     const date = req.query.date;
     if (!date) {
       res.status(400).json({ success: false, message: "Date is required" });
@@ -254,7 +248,10 @@ const FilterBlogsByDate = async (req, res) => {
 
     const dateObject = new Date(date);
     dateObject.setHours(23, 59, 59, 999);
-    const blogs = await Blog.find({ createdAt: { $lte: dateObject } });
+    const blogs = await Blog.find({
+      userId: req.user._id,
+      createdAt: { $lte: dateObject },
+    });
 
     if (!blogs || blogs.length === 0) {
       res.status(404).json({ success: false, message: "No blogs found" });
