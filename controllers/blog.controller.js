@@ -1,23 +1,22 @@
 import { Blog } from "../models/blog.model.js";
 
+// Create a new blog
 const AddBlog = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
     const { title, content, category, tags } = req.body;
     if (!title || !content) {
-      res
+      return res
         .status(400)
         .json({ success: false, message: "Title and content are required" });
-      return;
     }
 
-    const createBlog = await Blog.create({
+    const blog = await Blog.create({
       title,
       content,
       category,
@@ -25,128 +24,115 @@ const AddBlog = async (req, res) => {
       userId: req.user._id,
     });
 
-    if (!createBlog) {
-      res.status(400).json({ success: false, message: "Blog not created" });
-      return;
-    }
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Blog created successfully",
-      blog: createBlog,
+      blog,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in creating blog",
       error,
     });
-    return;
   }
 };
 
+// Update a blog by ID
 const UpdateBlogById = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
-    const id = req.params.id;
-    const data = req.body;
+    const updatedBlog = await Blog.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      req.body,
+      { new: true }
+    );
 
-    const blog = await Blog.findById(id);
-    if (!blog) {
-      res.status(404).json({ success: false, message: "Blog not found" });
-      return;
-    }
-    if (blog.userId.toString() !== req.user._id.toString()) {
-      res.status(403).json({
-        success: false,
-        message: "Not authorized to update this blog",
-      });
-      return;
+    if (!updatedBlog) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found or not authorized" });
     }
 
-    const updatedBlog = await Blog.findByIdAndUpdate(id, data, { new: true });
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Blog updated successfully",
       updatedBlog,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in updating blog",
       error,
     });
-    return;
   }
 };
+
+// Delete a blog by ID
 const DeleteBlogById = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
-    const id = req.params.id;
-    const blog = await Blog.findById(id);
+    const deletedBlog = await Blog.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
 
-    if (!blog) {
-      res.status(404).json({ success: false, message: "Blog not found" });
-      return;
-    }
-    if (blog.userId.toString() !== req.user._id.toString()) {
-      res.status(403).json({
-        success: false,
-        message: "Not authorized to delete this blog",
-      });
-      return;
+    if (!deletedBlog) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found or not authorized" });
     }
 
-    await Blog.findByIdAndDelete(id);
-    res
+    return res
       .status(200)
       .json({ success: true, message: "Blog deleted successfully" });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in deleting blog",
       error,
     });
   }
 };
+
+// Get all blogs for the logged-in user with pagination
 const GetAllBlogs = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
     const page = parseInt(req.query.page) || 1;
     const limit = 5;
     const skip = (page - 1) * limit;
 
-    const totalBlogs = await Blog.countDocuments({});
+    const totalBlogs = await Blog.countDocuments({ userId: req.user._id });
     const totalPages = Math.ceil(totalBlogs / limit);
 
-    const blogs = await Blog.find({})
+    const blogs = await Blog.find({ userId: req.user._id })
       .skip(skip)
       .limit(limit)
       .populate("userId", "username email");
+
     if (!blogs.length) {
-      res.status(404).json({ success: false, message: "No blogs found" });
-      return;
+      return res
+        .status(404)
+        .json({ success: false, message: "No blogs found" });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Blogs fetched successfully",
       page,
@@ -155,57 +141,59 @@ const GetAllBlogs = async (req, res) => {
       blogs,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in fetching blogs",
       error,
     });
-    return;
   }
 };
 
+// Get a single blog by ID (only if it belongs to logged-in user)
 const GetBlogById = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
-    const id = req.params.id;
-    const blog = await Blog.findById(id).populate("userId", "username email");
+    const blog = await Blog.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    }).populate("userId", "username email");
 
     if (!blog) {
-      res.status(404).json({ success: false, message: "Blog not found" });
-      return;
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
     }
 
-    res
+    return res
       .status(200)
       .json({ success: true, message: "Blog fetched successfully", blog });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in fetching blog",
       error,
     });
-    return;
   }
 };
 
+// Filter blogs by term (title, content, category, tags) for logged-in user
 const FilterBlogs = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
 
     const term = req.query.term || "";
 
     const blogs = await Blog.find({
+      userId: req.user._id,
       $or: [
         { category: { $regex: term, $options: "i" } },
         { title: { $regex: term, $options: "i" } },
@@ -215,58 +203,61 @@ const FilterBlogs = async (req, res) => {
     });
 
     if (!blogs.length) {
-      res.status(404).json({ success: false, message: "No blogs found" });
-      return;
+      return res
+        .status(404)
+        .json({ success: false, message: "No blogs found" });
     }
 
-    res
+    return res
       .status(200)
       .json({ success: true, message: "Blogs filtered successfully", blogs });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error in filtering blogs",
       error,
     });
-    return;
   }
 };
 
+// Filter blogs by date for logged-in user
 const FilterBlogsByDate = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      res
+    if (!req.user?._id) {
+      return res
         .status(401)
         .json({ success: false, message: "User not authenticated" });
-      return;
     }
+
     const date = req.query.date;
     if (!date) {
-      res.status(400).json({ success: false, message: "Date is required" });
-      return;
+      return res
+        .status(400)
+        .json({ success: false, message: "Date is required" });
     }
 
     const dateObject = new Date(date);
     dateObject.setHours(23, 59, 59, 999);
+
     const blogs = await Blog.find({
       userId: req.user._id,
       createdAt: { $lte: dateObject },
     });
 
-    if (!blogs || blogs.length === 0) {
-      res.status(404).json({ success: false, message: "No blogs found" });
-      return;
+    if (!blogs.length) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No blogs found" });
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Blogs fetched successfully",
-      blogs,
-    });
+    return res
+      .status(200)
+      .json({ success: true, message: "Blogs fetched successfully", blogs });
   } catch (error) {
     console.error("Error filtering blogs by date:", error);
-    res.status(500).json({ success: false, message: "Server error", error });
-    return;
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error", error });
   }
 };
 
